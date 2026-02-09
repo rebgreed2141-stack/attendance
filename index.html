@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <link rel="manifest" href="./manifest.json">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>園児出席簿</title>
+
+<style>
+  body { font-family: sans-serif; margin: 10px; }
+  .hidden { display: none; }
+
+  /* タブ */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    padding: 6px 0;
+    z-index: 10;
+  }
+  .tab {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 700;
+  }
+  .tab.active {
+    border-color: #222;
+  }
+
+  /* 入力：上段 */
+  .top-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .top-row select, .top-row input {
+    font-size: 16px;
+    padding: 6px 8px;
+  }
+
+  /* 入力：園児一覧 */
+  .child-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .child-name {
+    width: 140px;
+    font-weight: 700;
+    padding-top: 2px;
+  }
+  .reason-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  .reason-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #f2f2f2;
+    padding: 4px 7px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  /* 入力：人数（園児名の下に1列） */
+  .summary-col {
+    margin-top: 10px;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+    font-weight: 800;
+    width: 140px; /* 園児名列に合わせる */
+  }
+  .summary-col .line { margin: 6px 0; }
+
+  /* 月間表示 */
+  .view-header {
+    font-weight: 800;
+    margin: 8px 0 10px 0;
+    line-height: 1.5;
+    word-break: break-word; /* 入りきらなければ折り返し */
+  }
+  .table-wrap {
+    overflow: auto;
+    border: 1px solid #ddd;
+    padding: 6px;
+  }
+  table { border-collapse: collapse; min-width: 980px; }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 4px 6px;
+    font-size: 13px;
+    white-space: nowrap;
+    vertical-align: top;
+  }
+  th {
+    background: #f7f7f7;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .sticky-name {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #fff;
+    min-width: 140px;
+    font-weight: 800;
+  }
+  .sticky-name.th { background: #f7f7f7; }
+  .sun-col { background: #fafafa; }
+  .right-total { background: #f9f9ff; font-weight: 800; }
+  .footer-row td { font-weight: 800; background: #fcfcfc; }
+</style>
+</head>
+
+<body>
+
+<!-- タブ -->
+<div class="tabs">
+  <div class="tab active" id="tabInput">入力</div>
+  <div class="tab" id="tabMonth">月間表示</div>
+</div>
+
+<!-- 入力画面 -->
+<div id="screenInput">
+  <div class="top-row">
+    <input type="date" id="dateInput" />
+
+    <select id="classSelect">
+      <option value="">クラスを選択</option>
+      <option value="もみじ">もみじ</option>
+      <option value="どんぐり">どんぐり</option>
+      <option value="こぐま">こぐま</option>
+      <option value="りす">りす</option>
+      <option value="のうさぎ">のうさぎ</option>
+      <option value="かもしか">かもしか</option>
+    </select>
+
+    <select id="teacherSelect"></select>
+  </div>
+
+  <div id="childList"></div>
+
+  <!-- 園児名の下に1列（出席→欠席） -->
+  <div class="summary-col">
+    <div class="line">出席人数：<span id="presentCount">0</span></div>
+    <div class="line">欠席人数：<span id="absentCount">0</span></div>
+  </div>
+</div>
+
+<!-- 月間表示画面 -->
+<div id="screenMonth" class="hidden">
+  <div class="view-header" id="viewHeader"></div>
+  <div class="table-wrap">
+    <table id="monthTable"></table>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js");
+  }
+</script>
+</body>
+</html>
