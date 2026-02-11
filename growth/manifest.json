@@ -1,8 +1,0 @@
-{
-  "name": "身長体重管理",
-  "short_name": "身長体重",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4CAF50"
-}
