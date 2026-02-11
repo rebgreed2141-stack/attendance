@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <link rel="manifest" href="manifest.json">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>園児 身長＆体重 管理</title>
+  <style>
+    :root { --b:#e5e7eb; --t:#111827; --m:#6b7280; --bg:#ffffff; --card:#f9fafb; --accent:#2563eb; }
+    body{ font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN","Noto Sans JP", Arial, sans-serif;
+      margin:0; color:var(--t); background:#f3f4f6; }
+    header{ padding:14px 16px; background:var(--bg); border-bottom:1px solid var(--b); position:sticky; top:0; z-index:5; }
+    header h1{ font-size:16px; margin:0; }
+    main{ padding:16px; max-width:1100px; margin:0 auto; display:grid; gap:12px; }
+    .card{ background:var(--bg); border:1px solid var(--b); border-radius:12px; padding:12px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
+    .card h2{ font-size:14px; margin:0 0 8px 0; }
+    .muted{ color:var(--m); font-size:12px; }
+    .grid{ display:grid; gap:10px; }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    label{ font-size:12px; color:var(--m); display:block; margin-bottom:4px; }
+    select,input{ width:100%; padding:8px 10px; border:1px solid var(--b); border-radius:10px; background:#fff; font-size:14px; }
+    input[type="number"]{ text-align:right; }
+    .btns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+    button{
+      border:1px solid var(--b); background:#fff; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer;
+    }
+    button.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+    button.danger{ background:#fff; border-color:#ef4444; color:#ef4444; }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .toast{
+      position:fixed; right:16px; bottom:16px; background:#111827; color:#fff;
+      padding:10px 12px; border-radius:12px; font-size:13px; opacity:0; transform:translateY(8px);
+      transition: all .18s ease; pointer-events:none; max-width: 80vw;
+    }
+    .toast.show{ opacity:1; transform:translateY(0); }
+    canvas{ width:100%; height:320px; background:var(--card); border:1px solid var(--b); border-radius:12px; }
+    table{ width:100%; border-collapse:collapse; font-size:13px; }
+    th,td{ border-bottom:1px solid var(--b); padding:8px 6px; vertical-align:middle; }
+    th{ text-align:left; font-size:12px; color:var(--m); background:#fafafa; position:sticky; top:0; }
+    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid var(--b); background:#fff; color:var(--m); }
+    .warn{ border-color:#f59e0b; color:#92400e; background:#fffbeb; }
+    .ok{ border-color:#10b981; color:#065f46; background:#ecfdf5; }
+    .right{ text-align:right; }
+    .nowrap{ white-space:nowrap; }
+    .small{ font-size:12px; color:var(--m); }
+    .view { display:none; }
+    .view.active { display:block; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>園児 身長＆体重 管理（localStorage保存）</h1>
+    <div class="muted">入力 → 「グラフ/一覧を見る」 → 「戻る」で入力画面へ。</div>
+  </header>
+
+  <main>
+    <!-- ===== 入力画面 ===== -->
+    <section id="inputView" class="view active">
+      <div class="card">
+        <h2>入力</h2>
+        <div class="grid">
+          <div class="grid2">
+            <div>
+              <label>クラス</label>
+              <select id="classSelect"></select>
+            </div>
+            <div>
+              <label>園児</label>
+              <select id="childSelect"></select>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>日付</label>
+              <input id="dateInput" type="date" />
+            </div>
+            <div>
+              <label>モード</label>
+              <input id="modeView" type="text" readonly value="新規登録" />
+              <div class="small">一覧から編集したい場合は「グラフ/一覧を見る」へ。</div>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div>
+              <label>身長（cm）</label>
+              <input id="heightInput" type="number" step="0.1" min="0" placeholder="例：98.4" />
+            </div>
+            <div>
+              <label>体重（kg）</label>
+              <input id="weightInput" type="number" step="0.1" min="0" placeholder="例：14.2" />
+            </div>
+          </div>
+
+          <div class="btns">
+            <button class="primary" id="saveBtn">登録 / 更新</button>
+            <button id="newBtn">新規入力に戻す</button>
+            <button id="openReportBtn">グラフ / 一覧を見る</button>
+            <button id="csvAllBtn">CSV書き出し（全園児）</button>
+            <button class="danger" id="resetBtn" title="localStorageのデータを全削除します">全データ削除（危険）</button>
+          </div>
+
+          <div class="muted" id="statusLine">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== グラフ＆一覧画面 ===== -->
+    <section id="reportView" class="view">
+      <div class="card">
+        <div class="btns" style="margin-top:0;">
+          <button id="backBtn">戻る（入力画面へ）</button>
+          <button id="graphBtn">グラフ更新</button>
+          <button id="csvChildBtn">CSV書き出し（この園児）</button>
+        </div>
+        <div class="muted" id="reportTitle">—</div>
+      </div>
+
+      <div class="card">
+        <h2>グラフ（月別：同月は最新日付を採用）</h2>
+        <canvas id="chart" width="900" height="360"></canvas>
+        <div class="muted" id="chartNote">—</div>
+      </div>
+
+      <div class="card" style="max-height: 440px; overflow:auto;">
+        <h2>この園児の過去データ一覧（クリックで編集 / 削除ボタンで削除）</h2>
+        <div class="muted" style="margin-bottom:8px;">
+          同じ月に複数データがある場合、古い日付は「無効候補」として表示します（グラフでは無視されます）。ユーザーが気づいて削除できます。
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="nowrap">日付</th>
+              <th class="right nowrap">身長(cm)</th>
+              <th class="right nowrap">体重(kg)</th>
+              <th class="nowrap">状態</th>
+              <th class="nowrap">操作</th>
+            </tr>
+          </thead>
+          <tbody id="dataTbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ★ 固定データを分離（必ず main script より先に読み込む） -->
+  <script src="./data.js"></script>
+
+<script>
+/**
+ * 必須：data.js で window.CLASSES / window.CHILDREN が定義されている前提
+ */
+const CLASSES = window.CLASSES || [];
+const CHILDREN = window.CHILDREN || [];
+
+if (!Array.isArray(CLASSES) || !Array.isArray(CHILDREN) || CLASSES.length === 0) {
+  alert("data.js の読み込みに失敗しました。index.html と同じフォルダに data.js を置いてください。");
+}
+
+const STORAGE_KEY = "growth_records_v2";
+
+/**
+ * データ形式:
+ * {
+ *   [childId]: {
+ *     [yyyy-mm-dd]: { date, height, weight, updatedAt }
+ *   }
+ * }
+ */
+function loadAll() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveAll(obj) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+}
+
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const da = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${da}`;
+}
+function ymOf(dateStr){ return dateStr.slice(0,7); }
+function parseNum(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function round1(n){ return Math.round(n * 10) / 10; }
+
+function getClassById(id){ return CLASSES.find(c=>c.id===id) || null; }
+function getChildById(id){ return CHILDREN.find(c=>c.id===id) || null; }
+
+const el = (id)=>document.getElementById(id);
+const inputView = el("inputView");
+const reportView = el("reportView");
+
+const classSelect = el("classSelect");
+const childSelect = el("childSelect");
+const dateInput = el("dateInput");
+const heightInput = el("heightInput");
+const weightInput = el("weightInput");
+const modeView = el("modeView");
+const statusLine = el("statusLine");
+
+const reportTitle = el("reportTitle");
+const tbody = el("dataTbody");
+const chartCanvas = el("chart");
+const chartNote = el("chartNote");
+
+const toast = el("toast");
+
+let editContext = null; // { childId, originalDate }
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(()=>toast.classList.remove("show"), 1800);
+}
+
+function showView(which){
+  if(which === "input"){
+    inputView.classList.add("active");
+    reportView.classList.remove("active");
+  } else {
+    inputView.classList.remove("active");
+    reportView.classList.add("active");
+  }
+}
+
+function initSelectors(){
+  classSelect.innerHTML = "";
+  for(const c of CLASSES){
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    classSelect.appendChild(opt);
+  }
+  classSelect.value = CLASSES[0]?.id ?? "";
+  refreshChildOptions();
+}
+
+function refreshChildOptions(){
+  const clsId = classSelect.value;
+  const list = CHILDREN.filter(ch => ch.classId === clsId);
+
+  childSelect.innerHTML = "";
+  for(const ch of list){
+    const opt = document.createElement("option");
+    opt.value = ch.id;
+    opt.textContent = ch.name;
+    childSelect.appendChild(opt);
+  }
+  if(list.length){
+    childSelect.value = list[0].id;
+  } else {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "（園児未登録）";
+    childSelect.appendChild(opt);
+    childSelect.value = "";
+  }
+  refreshStatus();
+}
+
+function setModeNew(){
+  editContext = null;
+  modeView.value = "新規登録";
+  dateInput.value = todayISO();
+  heightInput.value = "";
+  weightInput.value = "";
+}
+function setModeEdit(childId, dateStr){
+  editContext = { childId, originalDate: dateStr };
+  modeView.value = "編集（一覧から選択中）";
+}
+
+function currentChildId(){
+  return childSelect.value;
+}
+
+function refreshStatus(){
+  const childId = currentChildId();
+  const cls = getClassById(classSelect.value);
+  const ch = getChildById(childId);
+
+  if(!childId){
+    statusLine.textContent = `選択中：${cls?.name ?? "-"} / （園児未登録）`;
+    return;
+  }
+  statusLine.textContent = `選択中：${cls?.name ?? "-"} / ${ch?.name ?? "-"}（ID: ${childId}）`;
+}
+
+function validateInputs(){
+  const childId = currentChildId();
+  if(!childId) return { ok:false, msg:"園児が未登録のクラスです。data.js に園児を追加してください。" };
+
+  const d = dateInput.value;
+  const h = parseNum(heightInput.value);
+  const w = parseNum(weightInput.value);
+
+  if(!d) return { ok:false, msg:"日付を入力してください。" };
+  if(h === null || w === null) return { ok:false, msg:"身長・体重を入力してください。" };
+  if(h <= 0 || w <= 0) return { ok:false, msg:"身長・体重は0より大きい値にしてください。" };
+
+  return { ok:true, childId, date:d, height:round1(h), weight:round1(w) };
+}
+
+function upsertRecord(childId, dateStr, height, weight){
+  const all = loadAll();
+  if(!all[childId]) all[childId] = {};
+  const existed = !!all[childId][dateStr];
+
+  all[childId][dateStr] = { date: dateStr, height, weight, updatedAt: Date.now() };
+  saveAll(all);
+  return existed;
+}
+
+function moveIfNeeded(childId, originalDate, newDate){
+  if(originalDate === newDate) return;
+  const all = loadAll();
+  if(!all[childId]) return;
+  if(all[childId][originalDate]){
+    delete all[childId][originalDate];
+    saveAll(all);
+  }
+}
+
+function deleteRecord(childId, dateStr){
+  const all = loadAll();
+  if(all[childId] && all[childId][dateStr]){
+    delete all[childId][dateStr];
+    if(Object.keys(all[childId]).length === 0) delete all[childId];
+    saveAll(all);
+    return true;
+  }
+  return false;
+}
+
+function computeLatestByMonthForChild(recsByDate){
+  const monthLatest = {};
+  const dates = Object.keys(recsByDate || {}).sort();
+  for(const d of dates){
+    const ym = ymOf(d);
+    if(!monthLatest[ym] || d > monthLatest[ym]) monthLatest[ym] = d;
+  }
+  return monthLatest;
+}
+
+function openReport(){
+  const childId = currentChildId();
+  if(!childId){
+    showToast("園児を選択してください。");
+    return;
+  }
+  const ch = getChildById(childId);
+  const cls = getClassById(ch?.classId || classSelect.value);
+  reportTitle.textContent = `表示対象：${cls?.name ?? "-"} / ${ch?.name ?? "-"}（ID: ${childId}）`;
+  showView("report");
+  renderChildTable();
+  drawChartForSelected();
+}
+
+function renderChildTable(){
+  const childId = currentChildId();
+  const all = loadAll();
+  const recs = all?.[childId] || {};
+  const monthLatest = computeLatestByMonthForChild(recs);
+
+  const rows = Object.keys(recs).sort((a,b)=> b.localeCompare(a)).map(dateStr=>{
+    const r = recs[dateStr];
+    const ym = ymOf(dateStr);
+    const latest = monthLatest[ym] || dateStr;
+    const isValid = (dateStr === latest);
+    return { date: dateStr, ym, height: r.height, weight: r.weight, isValid };
+  });
+
+  tbody.innerHTML = "";
+  if(rows.length === 0){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="5" class="muted">この園児のデータがありません。</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  for(const row of rows){
+    const tr = document.createElement("tr");
+    const statePill = row.isValid
+      ? `<span class="pill ok">有効</span>`
+      : `<span class="pill warn">無効候補</span>`;
+
+    tr.innerHTML = `
+      <td class="nowrap">${escapeHtml(row.date)}<div class="small">${escapeHtml(row.ym)}</div></td>
+      <td class="right nowrap">${Number(row.height).toFixed(1)}</td>
+      <td class="right nowrap">${Number(row.weight).toFixed(1)}</td>
+      <td class="nowrap">${statePill}</td>
+      <td class="nowrap">
+        <button data-act="edit">編集</button>
+        <button class="danger" data-act="del">削除</button>
+      </td>
+    `;
+
+    tr.addEventListener("click", (ev)=>{
+      const act = ev.target?.dataset?.act;
+      if(act === "edit"){
+        ev.stopPropagation();
+        loadRowToForm(childId, row.date);
+        return;
+      }
+      if(act === "del"){
+        ev.stopPropagation();
+        if(confirm(`削除しますか？\n${row.date}`)){
+          const ok = deleteRecord(childId, row.date);
+          if(ok){
+            if(editContext && editContext.childId === childId && editContext.originalDate === row.date){
+              setModeNew();
+            }
+            showToast("削除しました。");
+            renderChildTable();
+            drawChartForSelected();
+          }
+        }
+        return;
+      }
+      loadRowToForm(childId, row.date);
+    });
+
+    tbody.appendChild(tr);
+  }
+}
+
+function loadRowToForm(childId, dateStr){
+  const all = loadAll();
+  const rec = all?.[childId]?.[dateStr];
+  if(!rec) return;
+
+  dateInput.value = dateStr;
+  heightInput.value = rec.height;
+  weightInput.value = rec.weight;
+  setModeEdit(childId, dateStr);
+
+  showView("input");
+  showToast("編集用に入力画面へ戻しました。");
+  refreshStatus();
+}
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+/**
+ * グラフ：Y軸 0〜140 固定、目盛りあり
+ */
+function drawChartForSelected(){
+  const childId = currentChildId();
+  const all = loadAll();
+  const recsByDate = all?.[childId] || {};
+  const dates = Object.keys(recsByDate);
+  const ctx = chartCanvas.getContext("2d");
+
+  ctx.clearRect(0,0,chartCanvas.width,chartCanvas.height);
+
+  if(!childId){
+    ctx.font = "14px system-ui";
+    ctx.fillStyle = "#6b7280";
+    ctx.fillText("園児が未選択です。", 20, 40);
+    return;
+  }
+
+  const ch = getChildById(childId);
+  const cls = getClassById(ch?.classId || "");
+  chartNote.textContent = `表示中：${cls?.name ?? "-"} / ${ch?.name ?? "-"}（月別、同月は最新日付のみ／Y=0〜140）`;
+
+  if(dates.length === 0){
+    ctx.font = "14px system-ui";
+    ctx.fillStyle = "#6b7280";
+    ctx.fillText("データがありません。", 20, 40);
+    return;
+  }
+
+  const monthLatest = computeLatestByMonthForChild(recsByDate);
+  const months = Object.keys(monthLatest).sort();
+  const points = months.map(ym=>{
+    const d = monthLatest[ym];
+    const r = recsByDate[d];
+    return { ym, date: d, height: r.height, weight: r.weight };
+  });
+
+  const pad = { l: 56, r: 20, t: 26, b: 46 };
+  const W = chartCanvas.width, H = chartCanvas.height;
+  const plotW = W - pad.l - pad.r;
+  const plotH = H - pad.t - pad.b;
+
+  const Y_MIN = 0;
+  const Y_MAX = 140;
+
+  const xOf = (i)=> pad.l + (points.length===1 ? plotW/2 : (plotW * (i/(points.length-1))));
+  const yOf = (v)=> pad.t + (plotH * (1 - (v - Y_MIN) / (Y_MAX - Y_MIN)));
+
+  // 枠
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad.l, pad.t, plotW, plotH);
+
+  // 目盛り + 横グリッド
+  const TICK_STEP = 10;
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#6b7280";
+  ctx.strokeStyle = "#eef2f7";
+  ctx.lineWidth = 1;
+
+  for(let yv = Y_MIN; yv <= Y_MAX; yv += TICK_STEP){
+    const y = yOf(yv);
+
+    ctx.beginPath();
+    ctx.moveTo(pad.l, y);
+    ctx.lineTo(pad.l + plotW, y);
+    ctx.stroke();
+
+    const label = String(yv);
+    const tw = ctx.measureText(label).width;
+    ctx.fillText(label, pad.l - 8 - tw, y + 4);
+  }
+
+  // 月ラベル + 縦ガイド
+  ctx.fillStyle = "#6b7280";
+  ctx.strokeStyle = "#f1f5f9";
+  ctx.lineWidth = 1;
+
+  points.forEach((p,i)=>{
+    const x = xOf(i);
+    const label = p.ym;
+
+    const w = ctx.measureText(label).width;
+    ctx.fillText(label, x - w/2, H - 14);
+
+    ctx.beginPath();
+    ctx.moveTo(x, pad.t);
+    ctx.lineTo(x, pad.t + plotH);
+    ctx.stroke();
+  });
+
+  // 凡例
+  ctx.fillStyle = "#111827";
+  ctx.font = "12px system-ui";
+  ctx.fillText("身長（cm）", pad.l, 16);
+  ctx.fillText("体重（kg）", pad.l + 90, 16);
+
+  const colorHeight = "#2563eb";
+  const colorWeight = "#ef4444";
+
+  // 身長
+  ctx.strokeStyle = colorHeight;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x = xOf(i);
+    const y = yOf(p.height);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // 体重
+  ctx.strokeStyle = colorWeight;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x = xOf(i);
+    const y = yOf(p.weight);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // 点
+  points.forEach((p,i)=>{
+    const x = xOf(i);
+    ctx.fillStyle = colorHeight;
+    ctx.beginPath(); ctx.arc(x, yOf(p.height), 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = colorWeight;
+    ctx.beginPath(); ctx.arc(x, yOf(p.weight), 3, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+/**
+ * CSV
+ */
+function csvEscape(s){
+  const str = String(s ?? "");
+  if(str.includes(",") || str.includes('"') || str.includes("\n")){
+    return `"${str.replaceAll('"','""')}"`;
+  }
+  return str;
+}
+function downloadCSV(text, filename){
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + text], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSVAll(){
+  const all = loadAll();
+  const lines = [];
+  lines.push(["className","childName","childId","date","yearMonth","height_cm","weight_kg"].join(","));
+
+  const rows = [];
+  for(const childId of Object.keys(all)){
+    const ch = getChildById(childId);
+    const cls = getClassById(ch?.classId || "");
+    const recs = all[childId] || {};
+    for(const dateStr of Object.keys(recs)){
+      const r = recs[dateStr];
+      rows.push({
+        className: cls?.name || "",
+        childName: ch?.name || "",
+        childId,
+        date: dateStr,
+        ym: ymOf(dateStr),
+        height: Number(r.height).toFixed(1),
+        weight: Number(r.weight).toFixed(1),
+      });
+    }
+  }
+  rows.sort((a,b)=> (a.date+a.childId).localeCompare(b.date+b.childId));
+  for(const r of rows){
+    lines.push([csvEscape(r.className),csvEscape(r.childName),csvEscape(r.childId),csvEscape(r.date),csvEscape(r.ym),r.height,r.weight].join(","));
+  }
+
+  downloadCSV(lines.join("\n"), `growth_all_${todayISO().replaceAll("-","")}.csv`);
+  showToast("CSV（全園児）を書き出しました。");
+}
+
+function exportCSVSelectedChild(){
+  const childId = currentChildId();
+  if(!childId){
+    showToast("園児を選択してください。");
+    return;
+  }
+  const all = loadAll();
+  const recs = all?.[childId] || {};
+  const ch = getChildById(childId);
+  const cls = getClassById(ch?.classId || "");
+
+  const lines = [];
+  lines.push(["className","childName","childId","date","yearMonth","height_cm","weight_kg"].join(","));
+
+  const rows = Object.keys(recs).sort().map(dateStr=>{
+    const r = recs[dateStr];
+    return {
+      className: cls?.name || "",
+      childName: ch?.name || "",
+      childId,
+      date: dateStr,
+      ym: ymOf(dateStr),
+      height: Number(r.height).toFixed(1),
+      weight: Number(r.weight).toFixed(1),
+    };
+  });
+
+  for(const r of rows){
+    lines.push([csvEscape(r.className),csvEscape(r.childName),csvEscape(r.childId),csvEscape(r.date),csvEscape(r.ym),r.height,r.weight].join(","));
+  }
+
+  downloadCSV(lines.join("\n"), `growth_${(cls?.name||"")}_${(ch?.name||"")}_${todayISO().replaceAll("-","")}.csv`);
+  showToast("CSV（この園児）を書き出しました。");
+}
+
+/**
+ * イベント
+ */
+el("saveBtn").addEventListener("click", ()=>{
+  const v = validateInputs();
+  if(!v.ok){ showToast(v.msg); return; }
+
+  if(editContext && editContext.childId === v.childId){
+    moveIfNeeded(v.childId, editContext.originalDate, v.date);
+  }
+
+  const existed = upsertRecord(v.childId, v.date, v.height, v.weight);
+  showToast(existed ? "上書きしました。" : "登録しました。");
+
+  setModeNew();
+  refreshStatus();
+});
+
+el("newBtn").addEventListener("click", ()=>{ setModeNew(); showToast("新規入力に戻しました。"); });
+
+el("openReportBtn").addEventListener("click", openReport);
+
+el("backBtn").addEventListener("click", ()=>{ showView("input"); showToast("入力画面に戻りました。"); });
+
+el("graphBtn").addEventListener("click", ()=>{ drawChartForSelected(); showToast("グラフを更新しました。"); });
+
+el("csvAllBtn").addEventListener("click", exportCSVAll);
+el("csvChildBtn").addEventListener("click", exportCSVSelectedChild);
+
+el("resetBtn").addEventListener("click", ()=>{
+  if(confirm("本当に全データを削除しますか？（元に戻せません）")){
+    localStorage.removeItem(STORAGE_KEY);
+    setModeNew();
+    refreshStatus();
+    showView("input");
+    showToast("全データを削除しました。");
+  }
+});
+
+classSelect.addEventListener("change", ()=>{
+  refreshChildOptions();
+  setModeNew();
+  showToast("クラスを切り替えました。");
+});
+
+childSelect.addEventListener("change", ()=>{
+  setModeNew();
+  refreshStatus();
+});
+
+// 初期化
+initSelectors();
+setModeNew();
+refreshStatus();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
