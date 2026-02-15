@@ -3,7 +3,14 @@
 
 const CACHE_NAME = "app-cache-v1";
 const CORE_URLS = ["./", "./index.html", "./manifest.json"]; // 最低限。その他はアクセス時に自動でキャッシュします。
-
+const CORE_ASSETS = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./sw.js",
+  "./icon-192.png",
+  "./icon-512.png"
+];
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {

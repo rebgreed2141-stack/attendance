@@ -1,11 +1,12 @@
 {
-  "name": "Web App",
-  "short_name": "WebApp",
+  "name": "園児出席簿アプリ",
+  "short_name": "出席簿",
+  "description": "園児の出欠を記録するアプリ",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "theme_color": "#4CAF50",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
