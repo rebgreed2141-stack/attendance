@@ -1,0 +1,194 @@
+body {
+  font-family: sans-serif;
+  margin: 10px;
+}
+
+.hidden {
+  display: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  padding: 6px 0;
+  z-index: 10;
+}
+
+.tab {
+  border: 1px solid #ccc;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  background: #fff;
+}
+
+.tab.active {
+  border-color: #222;
+}
+
+.top-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.top-row select,
+.top-row input {
+  font-size: 16px;
+  padding: 6px 8px;
+}
+
+.child-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.child-name {
+  width: 140px;
+  font-weight: 700;
+  padding-top: 2px;
+}
+
+.reason-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.reason-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f2f2f2;
+  padding: 4px 7px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.summary-col {
+  margin-top: 10px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  font-weight: 800;
+  width: 140px;
+}
+
+.summary-col .line {
+  margin: 6px 0;
+}
+
+.view-header {
+  font-weight: 800;
+  margin: 8px 0 10px 0;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid #ddd;
+  padding: 6px;
+}
+
+table {
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 4px 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+th {
+  background: #f7f7f7;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.sticky-name {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #fff;
+  min-width: 140px;
+  font-weight: 800;
+}
+
+.sticky-name.th {
+  background: #f7f7f7;
+}
+
+.sun-col {
+  background: #fafafa;
+}
+
+.right-total {
+  background: #f9f9ff;
+  font-weight: 800;
+}
+
+.footer-row td {
+  font-weight: 800;
+  background: #fcfcfc;
+}
+
+.manage-card {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 14px;
+  max-width: 720px;
+}
+
+.manage-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.manage-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.action-btn.danger {
+  border-color: #c33;
+}
+
+.manage-note {
+  line-height: 1.7;
+  color: #333;
+}
+
+.manage-message {
+  margin-top: 12px;
+  min-height: 24px;
+  font-weight: 700;
+  color: #184f1d;
+}
