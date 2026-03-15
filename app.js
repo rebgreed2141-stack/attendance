@@ -15,6 +15,21 @@ const CLASS_FILE_MAP = {
 const FILE_CLASS_MAP = Object.fromEntries(
   Object.entries(CLASS_FILE_MAP).map(([jp, en]) => [en, jp])
 );
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAME_MAP = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12
+};
 
 const tabInput = document.getElementById("tabInput");
 const tabMonth = document.getElementById("tabMonth");
@@ -324,8 +339,8 @@ function renderMonthlyView() {
 
   const monthKey = monthKeyFromDate(dateStr);
   const data = loadMonthlyFromStorage(monthKey, className);
-  const year = Number(monthKey.slice(0, 4));
-  const month = Number(monthKey.slice(5, 7));
+  const year = Number(dateStr.slice(0, 4));
+  const month = Number(dateStr.slice(5, 7));
   const lastDay = getLastDay(year, month);
   const names = childrenData[className] || [];
   const childcareDays = countChildcareDays(year, month);
@@ -344,7 +359,7 @@ function renderMonthlyView() {
 
   for (let d = 1; d <= lastDay; d += 1) {
     const th = document.createElement("th");
-    const ds = `${monthKey}-${String(d).padStart(2, "0")}`;
+    const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const dow = dayOfWeek(ds);
     th.textContent = String(d);
     if (dow === 0) th.classList.add("sun-col");
@@ -381,7 +396,7 @@ function renderMonthlyView() {
 
     for (let d = 1; d <= lastDay; d += 1) {
       const td = document.createElement("td");
-      const ds = `${monthKey}-${String(d).padStart(2, "0")}`;
+      const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const dow = dayOfWeek(ds);
 
       if (dow === 0) {
@@ -430,7 +445,7 @@ function renderMonthlyView() {
   trP.appendChild(tdPLabel);
 
   for (let d = 1; d <= lastDay; d += 1) {
-    const ds = `${monthKey}-${String(d).padStart(2, "0")}`;
+    const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const dow = dayOfWeek(ds);
     const td = document.createElement("td");
 
@@ -464,7 +479,7 @@ function renderMonthlyView() {
   trA.appendChild(tdALabel);
 
   for (let d = 1; d <= lastDay; d += 1) {
-    const ds = `${monthKey}-${String(d).padStart(2, "0")}`;
+    const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const dow = dayOfWeek(ds);
     const td = document.createElement("td");
 
@@ -602,7 +617,7 @@ function collectBackupRowsByFile() {
         rows.push({
           monthKey,
           className,
-          date: dateStr,
+          date: formatDateForCsv(dateStr),
           teacher,
           childName,
           status: dayMap[childName] || "出席"
@@ -659,13 +674,17 @@ function importCsvText(text, sourceName = "") {
     const row = rows[i];
     if (!row || row.every((cell) => String(cell || "").trim() === "")) continue;
 
-    const monthKey = normalizeMonthKey(row[idx.monthKey]);
     const rawClassName = String(row[idx.className] || "").trim();
     const className = normalizeClassName(rawClassName);
     const dateStr = normalizeDate(row[idx.date]);
     const teacher = String(row[idx.teacher] || "").trim();
     const childName = String(row[idx.childName] || "").trim();
     const status = normalizeStatus(row[idx.status]);
+    let monthKey = normalizeMonthKey(row[idx.monthKey]);
+
+    if (!monthKey && dateStr) {
+      monthKey = monthKeyFromDate(dateStr);
+    }
 
     if (!monthKey || !className || !dateStr || !childName) continue;
 
@@ -699,17 +718,26 @@ function getAttendanceKeys() {
 }
 
 function parseStorageKey(key) {
-  const match = /^attendance_(\d{4}-\d{2})_(.+)$/.exec(key);
-  if (!match) return null;
+  const prefix = `${STORAGE_PREFIX}`;
+  if (!key.startsWith(prefix)) return null;
+  const rest = key.slice(prefix.length);
+  const idx = rest.indexOf("_");
+  if (idx < 0) return null;
+
+  const monthKey = rest.slice(0, idx);
+  const className = rest.slice(idx + 1);
+
+  if (!monthKey || !className) return null;
+
   return {
-    monthKey: match[1],
-    className: match[2]
+    monthKey,
+    className
   };
 }
 
 function buildCsvFileName(className, monthKey) {
   const classToken = CLASS_FILE_MAP[className] || sanitizeFilePart(className);
-  const yyyymm = monthKey.replace("-", "");
+  const yyyymm = monthKeyToYYYYMM(monthKey);
   return `attendance_${classToken}_${yyyymm}.csv`;
 }
 
@@ -730,15 +758,92 @@ function normalizeClassName(value) {
 }
 
 function normalizeMonthKey(value) {
-  const text = String(value || "").trim().replace(/\//g, "-");
-  if (/^\d{4}-\d{2}$/.test(text)) return text;
-  if (/^\d{6}$/.test(text)) return `${text.slice(0, 4)}-${text.slice(4, 6)}`;
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  let match = text.match(/^(\d{2})-([A-Za-z]{3})$/);
+  if (match) {
+    const yy = match[1];
+    const mon = capitalizeMonth(match[2]);
+    if (MONTH_NAME_MAP[mon.toLowerCase()]) {
+      return `${yy}-${mon}`;
+    }
+  }
+
+  match = text.match(/^([A-Za-z]{3})-(\d{2})$/);
+  if (match) {
+    const mon = capitalizeMonth(match[1]);
+    const yy = match[2];
+    if (MONTH_NAME_MAP[mon.toLowerCase()]) {
+      return `${yy}-${mon}`;
+    }
+  }
+
+  match = text.replace(/\//g, "-").match(/^(\d{4})-(\d{1,2})$/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    if (month >= 1 && month <= 12) {
+      return `${String(year).slice(-2)}-${MONTH_NAMES[month - 1]}`;
+    }
+  }
+
+  match = text.match(/^(\d{6})$/);
+  if (match) {
+    const year = Number(text.slice(0, 4));
+    const month = Number(text.slice(4, 6));
+    if (month >= 1 && month <= 12) {
+      return `${String(year).slice(-2)}-${MONTH_NAMES[month - 1]}`;
+    }
+  }
+
   return "";
 }
 
 function normalizeDate(value) {
-  const text = String(value || "").trim().replace(/\//g, "-");
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  if (value == null) return "";
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const converted = excelSerialToYMD(value);
+    return converted || "";
+  }
+
+  const text = String(value).trim();
+  if (!text) return "";
+
+  if (/^\d{5}$/.test(text) || /^\d{1,5}(\.\d+)?$/.test(text)) {
+    const num = Number(text);
+    if (Number.isFinite(num) && num > 0) {
+      const converted = excelSerialToYMD(num);
+      if (converted) return converted;
+    }
+  }
+
+  let match = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (match) {
+    const y = Number(match[1]);
+    const m = Number(match[2]);
+    const d = Number(match[3]);
+    if (isValidYMD(y, m, d)) {
+      return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+  }
+
+  match = text.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (match) {
+    const y = Number(match[1]);
+    const m = Number(match[2]);
+    const d = Number(match[3]);
+    if (isValidYMD(y, m, d)) {
+      return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    }
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return toYMD(parsed);
+  }
+
   return "";
 }
 
@@ -851,7 +956,34 @@ function toYMD(date) {
 }
 
 function monthKeyFromDate(dateStr) {
-  return dateStr.slice(0, 7);
+  const normalized = normalizeDate(dateStr);
+  if (!normalized) return "";
+
+  const y = normalized.slice(2, 4);
+  const m = Number(normalized.slice(5, 7));
+  return `${y}-${MONTH_NAMES[m - 1]}`;
+}
+
+function monthKeyToYYYYMM(monthKey) {
+  const normalized = normalizeMonthKey(monthKey);
+  if (!normalized) return "";
+
+  const match = normalized.match(/^(\d{2})-([A-Za-z]{3})$/);
+  if (!match) return "";
+
+  const yy = Number(match[1]);
+  const month = MONTH_NAME_MAP[match[2].toLowerCase()];
+  const yyyy = yy >= 70 ? 1900 + yy : 2000 + yy;
+  return `${yyyy}${String(month).padStart(2, "0")}`;
+}
+
+function formatDateForCsv(dateStr) {
+  const normalized = normalizeDate(dateStr);
+  if (!normalized) return "";
+  const y = normalized.slice(0, 4);
+  const m = String(Number(normalized.slice(5, 7)));
+  const d = String(Number(normalized.slice(8, 10)));
+  return `${y}/${m}/${d}`;
 }
 
 function getLastDay(year, month) {
@@ -859,7 +991,9 @@ function getLastDay(year, month) {
 }
 
 function dayOfWeek(dateStr) {
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const normalized = normalizeDate(dateStr);
+  if (!normalized) return 0;
+  const [y, m, d] = normalized.split("-").map(Number);
   return new Date(y, m - 1, d).getDay();
 }
 
@@ -909,4 +1043,31 @@ function cssEscape(s) {
 function makeRadioGroupName(className, name) {
   const base = `${className}_${name}`;
   return "reason_" + base.replace(/[^\w\u3040-\u30FF\u4E00-\u9FFF]+/g, "_");
+}
+
+function capitalizeMonth(mon) {
+  const lower = String(mon || "").trim().toLowerCase();
+  if (!MONTH_NAME_MAP[lower]) return "";
+  return lower.charAt(0).toUpperCase() + lower.slice(1, 3);
+}
+
+function isValidYMD(y, m, d) {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false;
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
+function excelSerialToYMD(serial) {
+  const num = Number(serial);
+  if (!Number.isFinite(num)) return "";
+  const utcDays = Math.floor(num - 25569);
+  const utcValue = utcDays * 86400;
+  const dateInfo = new Date(utcValue * 1000);
+  if (Number.isNaN(dateInfo.getTime())) return "";
+  const y = dateInfo.getUTCFullYear();
+  const m = dateInfo.getUTCMonth() + 1;
+  const d = dateInfo.getUTCDate();
+  if (!isValidYMD(y, m, d)) return "";
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
