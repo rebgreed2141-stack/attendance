@@ -30,6 +30,7 @@ const MONTH_NAME_MAP = {
   nov: 11,
   dec: 12
 };
+const WEEKDAY_NAMES = ["日", "月", "火", "水", "木", "金", "土"];
 
 const tabInput = document.getElementById("tabInput");
 const tabMonth = document.getElementById("tabMonth");
@@ -362,8 +363,12 @@ function renderMonthlyView() {
     const th = document.createElement("th");
     const ds = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const dow = dayOfWeek(ds);
-    th.textContent = String(d);
+
+    th.appendChild(createDateHeaderContent(d, dow));
+
     if (dow === 0) th.classList.add("sun-col");
+    if (dow === 6) th.classList.add("sat-col");
+
     trh.appendChild(th);
   }
 
@@ -405,17 +410,16 @@ function renderMonthlyView() {
         td.textContent = "";
       } else {
         const st = data?.days?.[ds]?.[name];
-        if (!st) {
+        if (!st || st === "出席") {
           td.textContent = "";
-        } else {
-          td.textContent = st;
           if (st === "出席") {
             pTotal += 1;
             dailyPresent[d - 1] += 1;
-          } else {
-            aTotal += 1;
-            dailyAbsent[d - 1] += 1;
           }
+        } else {
+          td.textContent = st;
+          aTotal += 1;
+          dailyAbsent[d - 1] += 1;
         }
       }
       tr.appendChild(td);
@@ -508,6 +512,31 @@ function renderMonthlyView() {
   tbody.appendChild(trP);
   tbody.appendChild(trA);
   monthTable.appendChild(tbody);
+}
+
+function createDateHeaderContent(dayNumber, dow) {
+  const wrap = document.createElement("div");
+  wrap.className = "date-head";
+
+  const dayEl = document.createElement("div");
+  dayEl.className = "date-number";
+  dayEl.textContent = String(dayNumber);
+
+  const weekEl = document.createElement("div");
+  weekEl.className = "date-weekday";
+  weekEl.textContent = WEEKDAY_NAMES[dow] || "";
+
+  if (dow === 0) {
+    dayEl.classList.add("sun-text");
+    weekEl.classList.add("sun-text");
+  } else if (dow === 6) {
+    dayEl.classList.add("sat-text");
+    weekEl.classList.add("sat-text");
+  }
+
+  wrap.appendChild(dayEl);
+  wrap.appendChild(weekEl);
+  return wrap;
 }
 
 async function handleBackup() {

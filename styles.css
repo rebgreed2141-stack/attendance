@@ -138,6 +138,10 @@ th {
   background: #fafafa;
 }
 
+.sat-col {
+  background: #fdfdff;
+}
+
 .right-total {
   background: #f9f9ff;
   font-weight: 800;
@@ -146,6 +150,31 @@ th {
 .footer-row td {
   font-weight: 800;
   background: #fcfcfc;
+}
+
+.date-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  min-width: 28px;
+}
+
+.date-number {
+  font-weight: 800;
+}
+
+.date-weekday {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.sun-text {
+  color: #d93025;
+}
+
+.sat-text {
+  color: #1a73e8;
 }
 
 .manage-card {
